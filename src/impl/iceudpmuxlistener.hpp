@@ -70,6 +70,9 @@ private:
 	std::list<uint64_t> mExpiry;
 };
 
+void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddress,
+                               const std::vector<string> &proxies);
+
 }
 
 #endif

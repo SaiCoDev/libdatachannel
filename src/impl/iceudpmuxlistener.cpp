@@ -322,4 +322,24 @@ IceUdpMuxListenerStats IceUdpMuxListener::stats() const {
 #endif
 }
 
+void SetIceUdpMuxProxyProtocol(uint16_t port, const optional<string> &bindAddress,
+                               const std::vector<string> &proxies) {
+#if !USE_NICE
+	if (!port)
+		throw std::invalid_argument("ICE UDP mux port is required");
+	std::vector<const char *> entries;
+	entries.reserve(proxies.size());
+	for (const auto &proxy : proxies)
+		entries.push_back(proxy.c_str());
+	int result = juice_mux_set_proxy_protocol(bindAddress ? bindAddress->c_str() : nullptr, port,
+	                                          entries.data(), entries.size());
+	if (result == JUICE_ERR_INVALID)
+		throw std::invalid_argument("Invalid PROXY protocol relay");
+	if (result < 0)
+		throw std::runtime_error("Failed to set PROXY protocol relays");
+#else
+	throw std::runtime_error("ICE UDP mux requires libjuice");
+#endif
+}
+
 } // namespace rtc::impl

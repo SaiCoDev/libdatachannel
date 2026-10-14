@@ -678,6 +678,23 @@ int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmission *admissio
 	});
 }
 
+int rtcSetIceUdpMuxProxyProtocol(const char *bindAddress, uint16_t port, const char *const *proxies,
+                                 int count) {
+	return wrap([&] {
+		if (count < 0 || (count > 0 && !proxies))
+			throw std::invalid_argument("Invalid PROXY protocol relay list");
+		std::vector<string> list;
+		for (int i = 0; i < count; ++i) {
+			if (!proxies[i])
+				throw std::invalid_argument("Invalid PROXY protocol relay");
+			list.emplace_back(proxies[i]);
+		}
+		auto address = bindAddress ? optional<string>(bindAddress) : nullopt;
+		SetIceUdpMuxProxyProtocol(port, std::move(address), list);
+		return RTC_ERR_SUCCESS;
+	});
+}
+
 int rtcCreatePeerConnection(const rtcConfiguration *config) {
 	return wrap([config] {
 		Configuration c = convertConfiguration(config);

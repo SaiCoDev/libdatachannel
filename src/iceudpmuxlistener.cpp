@@ -102,4 +102,9 @@ shared_ptr<StunUdpMuxMonitor> IceUdpMuxListener::monitorStun(string serverHost, 
 	return impl()->monitorStun(std::move(serverHost), serverPort);
 }
 
+void SetIceUdpMuxProxyProtocol(uint16_t port, optional<string> bindAddress,
+                               const std::vector<string> &proxies) {
+	impl::SetIceUdpMuxProxyProtocol(port, bindAddress, proxies);
+}
+
 } // namespace rtc
