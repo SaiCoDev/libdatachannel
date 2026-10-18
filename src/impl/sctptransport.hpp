@@ -62,6 +62,9 @@ public:
 	optional<std::chrono::milliseconds> rtt();
 	optional<SctpStats> stats();
 
+	// Why the association ended, empty while it is up or when it ended with the layer below
+	optional<rtc::PeerConnection::CloseReason> closeReason() const;
+
 private:
 	// Order seems wrong but these are the actual values
 	// See https://datatracker.ietf.org/doc/html/draft-ietf-rtcweb-data-channel-13#section-8
@@ -102,6 +105,7 @@ private:
 	const Ports mPorts;
 	struct socket *mSock;
 	std::optional<uint16_t> mNegotiatedStreamsCount;
+	std::atomic<bool> mShutdownComplete = false;
 
 	Processor mProcessor;
 	std::atomic<int> mPendingRecvCount = 0;

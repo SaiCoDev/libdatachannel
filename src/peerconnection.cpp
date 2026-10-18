@@ -39,19 +39,32 @@ PeerConnection::PeerConnection(Configuration config)
 
 PeerConnection::~PeerConnection() {
 	try {
+		impl()->setCloseReason(CloseReason::Local);
 		impl()->remoteClose();
 	} catch (const std::exception &e) {
 		PLOG_ERROR << e.what();
 	}
 }
 
-void PeerConnection::close() { impl()->close(); }
+void PeerConnection::close() {
+	impl()->setCloseReason(CloseReason::Local);
+	impl()->close();
+}
 
-bool PeerConnection::closeAndWait(std::chrono::milliseconds timeout) { return impl()->closeAndWait(timeout); }
+bool PeerConnection::closeAndWait(std::chrono::milliseconds timeout) {
+	impl()->setCloseReason(CloseReason::Local);
+	return impl()->closeAndWait(timeout);
+}
 
-std::shared_future<void> PeerConnection::closeAsync() { return impl()->closeAsync(); }
+std::shared_future<void> PeerConnection::closeAsync() {
+	impl()->setCloseReason(CloseReason::Local);
+	return impl()->closeAsync();
+}
 
-void PeerConnection::closeAsync(std::function<void()> callback) { impl()->closeAsync(std::move(callback)); }
+void PeerConnection::closeAsync(std::function<void()> callback) {
+	impl()->setCloseReason(CloseReason::Local);
+	impl()->closeAsync(std::move(callback));
+}
 
 const Configuration *PeerConnection::config() const { return &impl()->config; }
 
@@ -66,6 +79,8 @@ PeerConnection::GatheringState PeerConnection::gatheringState() const {
 PeerConnection::SignalingState PeerConnection::signalingState() const {
 	return impl()->signalingState;
 }
+
+PeerConnection::CloseReason PeerConnection::closeReason() const { return impl()->closeReason(); }
 
 bool PeerConnection::negotiationNeeded() const {
 	return impl()->negotiationNeeded();

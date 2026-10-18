@@ -1000,6 +1000,13 @@ int rtcGetSctpStats(int pc, rtcSctpStats *stats) {
 	});
 }
 
+int rtcGetCloseReason(int pc) {
+	return wrap([&] {
+		auto peerConnection = getPeerConnection(pc);
+		return static_cast<int>(peerConnection->closeReason());
+	});
+}
+
 int rtcGetMaxDataChannelStream(int pc) {
 	return wrap([&] {
 		auto peerConnection = getPeerConnection(pc);

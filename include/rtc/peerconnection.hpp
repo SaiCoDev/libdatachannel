@@ -89,6 +89,17 @@ public:
 		HaveRemotePranswer = RTC_SIGNALING_HAVE_REMOTE_PRANSWER,
 	};
 
+	// Why the connection closed, as far as this side can tell; see rtcCloseReason
+	enum class CloseReason : int {
+		None = RTC_CLOSE_REASON_NONE,
+		Local = RTC_CLOSE_REASON_LOCAL,
+		RemoteShutdown = RTC_CLOSE_REASON_REMOTE_SHUTDOWN,
+		RemoteAbort = RTC_CLOSE_REASON_REMOTE_ABORT,
+		SctpTimeout = RTC_CLOSE_REASON_SCTP_TIMEOUT,
+		IceFailed = RTC_CLOSE_REASON_ICE_FAILED,
+		TransportFailed = RTC_CLOSE_REASON_TRANSPORT_FAILED
+	};
+
 	PeerConnection();
 	PeerConnection(Configuration config);
 	~PeerConnection();
@@ -105,6 +116,7 @@ public:
 	IceState iceState() const;
 	GatheringState gatheringState() const;
 	SignalingState signalingState() const;
+	CloseReason closeReason() const;
 	bool negotiationNeeded() const;
 	bool hasMedia() const;
 	optional<Description> localDescription() const;

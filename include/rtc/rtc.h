@@ -103,6 +103,16 @@ typedef enum {
 	RTC_SIGNALING_HAVE_REMOTE_PRANSWER = 4,
 } rtcSignalingState;
 
+typedef enum {
+	RTC_CLOSE_REASON_NONE = 0,             // Still open
+	RTC_CLOSE_REASON_LOCAL = 1,            // Closed by this side
+	RTC_CLOSE_REASON_REMOTE_SHUTDOWN = 2,  // The remote shut SCTP or DTLS down
+	RTC_CLOSE_REASON_REMOTE_ABORT = 3,     // The remote aborted the SCTP association
+	RTC_CLOSE_REASON_SCTP_TIMEOUT = 4,     // The remote stopped acknowledging SCTP data
+	RTC_CLOSE_REASON_ICE_FAILED = 5,       // ICE lost connectivity to the remote
+	RTC_CLOSE_REASON_TRANSPORT_FAILED = 6  // DTLS or SCTP failed otherwise
+} rtcCloseReason;
+
 typedef enum { // Don't change, it must match plog severity
 	RTC_LOG_NONE = 0,
 	RTC_LOG_FATAL = 1,
@@ -370,6 +380,9 @@ typedef struct {
 
 // State of the SCTP association, RTC_ERR_NOT_AVAIL until it is connected
 RTC_C_EXPORT int rtcGetSctpStats(int pc, rtcSctpStats *stats);
+
+// Why the peer connection closed or is closing, as an rtcCloseReason
+RTC_C_EXPORT int rtcGetCloseReason(int pc);
 
 // DataChannel, Track, and WebSocket common API
 

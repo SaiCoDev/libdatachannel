@@ -216,11 +216,13 @@ shared_ptr<IceTransport> PeerConnection::initIceTransport() {
 						    changeIceState(IceState::Completed);
 						    break;
 					    case IceTransport::State::Failed:
+						    setCloseReason(CloseReason::IceFailed);
 						    changeIceState(IceState::Failed);
 						    changeState(State::Failed);
 						    mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
 						    break;
 					    case IceTransport::State::Disconnected:
+						    setCloseReason(CloseReason::IceFailed);
 						    changeIceState(IceState::Disconnected);
 						    changeState(State::Disconnected);
 						    mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
@@ -295,10 +297,15 @@ shared_ptr<DtlsTransport> PeerConnection::initDtlsTransport() {
 						mProcessor.enqueue(&PeerConnection::openTracks, shared_from_this());
 						break;
 					case DtlsTransport::State::Failed:
+						setCloseReason(CloseReason::TransportFailed);
 						changeState(State::Failed);
 						mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
 						break;
 					case DtlsTransport::State::Disconnected:
+						if (auto dtls = getDtlsTransport(); dtls && dtls->remoteClosed())
+							setCloseReason(CloseReason::RemoteShutdown);
+						else
+							setCloseReason(CloseReason::TransportFailed);
 						changeState(State::Disconnected);
 						mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
 						break;
@@ -378,10 +385,12 @@ shared_ptr<SctpTransport> PeerConnection::initSctpTransport() {
 						                       shared_from_this());
 						    break;
 					    case SctpTransport::State::Failed:
+						    recordSctpCloseReason();
 						    changeState(State::Failed);
 						    mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
 						    break;
 					    case SctpTransport::State::Disconnected:
+						    recordSctpCloseReason();
 						    changeState(State::Disconnected);
 						    mProcessor.enqueue(&PeerConnection::remoteClose, shared_from_this());
 						    break;
@@ -1479,6 +1488,28 @@ bool PeerConnection::changeSignalingState(SignalingState newState) {
 	                   &signalingStateChangeCallback, newState);
 
 	return true;
+}
+
+void PeerConnection::setCloseReason(CloseReason reason) {
+	auto expected = CloseReason::None;
+	mCloseReason.compare_exchange_strong(expected, reason);
+}
+
+PeerConnection::CloseReason PeerConnection::closeReason() const {
+	if (auto reason = mCloseReason.load(); reason != CloseReason::None)
+		return reason;
+
+	// A send can fail on an ended association before its notification is processed
+	auto sctpTransport = getSctpTransport();
+	return sctpTransport ? sctpTransport->closeReason().value_or(CloseReason::None)
+	                     : CloseReason::None;
+}
+
+void PeerConnection::recordSctpCloseReason() {
+	// Without one of its own, SCTP ended because DTLS did, which records the reason itself
+	if (auto sctpTransport = getSctpTransport())
+		if (auto reason = sctpTransport->closeReason())
+			setCloseReason(*reason);
 }
 
 void PeerConnection::resetCallbacks() {

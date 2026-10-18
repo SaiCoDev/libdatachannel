@@ -41,6 +41,8 @@ public:
 	virtual bool send(message_ptr message) override; // false if dropped
 
 	bool isClient() const { return mIsClient; }
+	// Whether the remote ended the connection with a close_notify
+	bool remoteClosed() const { return mRemoteClosed; }
 
 protected:
 	virtual void incoming(message_ptr message) override;
@@ -62,6 +64,7 @@ protected:
 	std::mutex mRecvMutex;
 	std::atomic<unsigned int> mCurrentDscp = 0;
 	std::atomic<bool> mOutgoingResult = true;
+	std::atomic<bool> mRemoteClosed = false;
 
 #if USE_GNUTLS
 	gnutls_session_t mSession;

@@ -35,6 +35,7 @@ struct PeerConnection : std::enable_shared_from_this<PeerConnection> {
 	using IceState = rtc::PeerConnection::IceState;
 	using GatheringState = rtc::PeerConnection::GatheringState;
 	using SignalingState = rtc::PeerConnection::SignalingState;
+	using CloseReason = rtc::PeerConnection::CloseReason;
 
 	PeerConnection(Configuration config_);
 	~PeerConnection();
@@ -106,6 +107,11 @@ struct PeerConnection : std::enable_shared_from_this<PeerConnection> {
 	bool changeGatheringState(GatheringState newState);
 	bool changeSignalingState(SignalingState newState);
 
+	// Keeps the first reason, so the transport that ended the connection is the one reported
+	void setCloseReason(CloseReason reason);
+	CloseReason closeReason() const;
+	void recordSctpCloseReason();
+
 	void resetCallbacks();
 
 	CertificateFingerprint remoteFingerprint();
@@ -125,6 +131,7 @@ struct PeerConnection : std::enable_shared_from_this<PeerConnection> {
 	std::atomic<GatheringState> gatheringState = GatheringState::New;
 	std::atomic<SignalingState> signalingState = SignalingState::Stable;
 	std::atomic<bool> closing = false;
+	std::atomic<CloseReason> mCloseReason = CloseReason::None;
 	std::mutex signalingMutex;
 
 	synchronized_callback<shared_ptr<rtc::DataChannel>> dataChannelCallback;

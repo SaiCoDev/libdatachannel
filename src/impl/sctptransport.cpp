@@ -874,6 +874,9 @@ void SctpTransport::processNotification(const union sctp_notification *notify, s
 			PLOG_INFO << "SCTP connected";
 			changeState(State::Connected);
 		} else {
+			if (sac.sac_state == SCTP_SHUTDOWN_COMP)
+				mShutdownComplete = true;
+
 			if (state() == State::Connected) {
 				PLOG_INFO << "SCTP disconnected";
 				changeState(State::Disconnected);
@@ -986,6 +989,29 @@ optional<SctpStats> SctpTransport::stats() {
 	stats.pendingChunks = status.sstat_penddata;
 	stats.dataTimeouts = timeouts.stimo_data;
 	return stats;
+}
+
+optional<rtc::PeerConnection::CloseReason> SctpTransport::closeReason() const {
+	using CloseReason = rtc::PeerConnection::CloseReason;
+	if (mShutdownComplete)
+		return CloseReason::RemoteShutdown;
+
+	// usrsctp sets the error when the association ends, before a send can see that, and keeps it
+	int error = 0;
+	socklen_t len = sizeof(error);
+	if (usrsctp_getsockopt(mSock, SOL_SOCKET, SO_ERROR, &error, &len))
+		return nullopt;
+
+	switch (error) {
+	case 0:
+		return nullopt;
+	case ECONNRESET:
+		return CloseReason::RemoteAbort;
+	case ETIMEDOUT:
+		return CloseReason::SctpTimeout;
+	default:
+		return CloseReason::TransportFailed;
+	}
 }
 
 void SctpTransport::UpcallCallback(struct socket *, void *arg, int /* flags */) {

@@ -260,6 +260,7 @@ void DtlsTransport::doRecv() {
 					if (ret == 0) {
 						// Closed
 						PLOG_DEBUG << "DTLS connection cleanly closed";
+						mRemoteClosed = true;
 						break;
 					}
 					auto *b = reinterpret_cast<byte *>(buffer);
@@ -585,6 +586,7 @@ void DtlsTransport::doRecv() {
 
 				if (ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) {
 					PLOG_DEBUG << "DTLS connection cleanly closed";
+					mRemoteClosed = true;
 					break;
 				}
 
@@ -999,6 +1001,7 @@ void DtlsTransport::doRecv() {
 
 				if (err == SSL_ERROR_ZERO_RETURN) {
 					PLOG_DEBUG << "TLS connection cleanly closed";
+					mRemoteClosed = true;
 					break;
 				}
 
