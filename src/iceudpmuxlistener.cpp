@@ -92,6 +92,10 @@ void IceUdpMuxListener::attach(uint64_t requestId, shared_ptr<PeerConnection> pe
 	impl()->attach(requestId, std::move(peer));
 }
 
+void IceUdpMuxListener::setAdmission(optional<IceUdpMuxAdmission> admission) {
+	impl()->setAdmission(admission);
+}
+
 IceUdpMuxListenerStats IceUdpMuxListener::stats() const { return impl()->stats(); }
 
 shared_ptr<StunUdpMuxMonitor> IceUdpMuxListener::monitorStun(string serverHost, uint16_t serverPort) {

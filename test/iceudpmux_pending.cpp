@@ -1,6 +1,7 @@
 // Incoming connections must answer the retained first request without a retry.
 #include "rtc/rtc.h"
 #include "rtc/iceudpmuxlistener.hpp"
+#include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <arpa/inet.h>
 #include <poll.h>
@@ -38,7 +39,7 @@ void attribute(std::vector<unsigned char> &data, uint16_t type,
     while (data.size() % 4) data.push_back(0);
 }
 std::vector<unsigned char> request(const std::string &ufrag, unsigned char transaction,
-                                   bool valid = true) {
+                                   bool valid = true, const std::string &password = localPassword) {
     std::vector<unsigned char> data{0, 1, 0, 0, 0x21, 0x12, 0xa4, 0x42};
     data.resize(20, transaction);
     auto username = ufrag + ":" + remoteUfrag;
@@ -51,7 +52,7 @@ std::vector<unsigned char> request(const std::string &ufrag, unsigned char trans
     data[3] = static_cast<unsigned char>(length);
     std::array<unsigned char, 20> mac{};
     unsigned int size = 0;
-    require(HMAC(EVP_sha1(), localPassword.data(), int(localPassword.size()), data.data(),
+    require(HMAC(EVP_sha1(), password.data(), int(password.size()), data.data(),
                  data.size(), mac.data(), &size) && size == mac.size(), "STUN MAC generation");
     if (!valid) mac[0] ^= 1;
     attribute(data, 0x0008, {mac.begin(), mac.end()});
@@ -220,6 +221,45 @@ void directPeer() {
     cleanup(peer);
     require(rtcDeleteIceUdpMuxListener(listener) == 0, "delete direct listener");
 }
+// Requests that no key or peer authenticates never reach the callback.
+void admission() {
+    const std::string context = "context", secret = "admission secret", keyed = "keyedLocalUfrag";
+    std::array<unsigned char, 32> digest{};
+    auto input = context + keyed;
+    require(HMAC(EVP_sha256(), secret.data(), int(secret.size()),
+                 reinterpret_cast<const unsigned char *>(input.data()), input.size(), digest.data(),
+                 nullptr), "derive admission password");
+    std::array<unsigned char, 33> encoded{};
+    EVP_EncodeBlock(encoded.data(), digest.data(), 24);
+    const std::string derived(reinterpret_cast<const char *>(encoded.data()));
+    Requests requests;
+    rtcIceUdpMuxListenerConfiguration cfg{"127.0.0.1", port, 8, 5000};
+    int listener = rtcCreateIceUdpMuxListener(&cfg, Requests::incoming, &requests);
+    require(listener >= 0, "admission listener");
+    rtcIceUdpMuxAdmissionKey key{"keyed", secret.data(), int(secret.size())};
+    rtcIceUdpMuxAdmission settings{context.data(), int(context.size()), &key, 1};
+    require(rtcSetIceUdpMuxAdmission(listener, &settings) == 0, "set admission");
+    Socket forged, unknown, valid, open;
+    forged.send(request(keyed, 21));
+    unknown.send(request("unknownLocalUfrag", 22, true, derived));
+    valid.send(request(keyed, 23, true, derived));
+    auto id = requests.wait(0);
+    rtcIceUdpMuxListenerStats stats{};
+    require(rtcGetIceUdpMuxListenerStats(listener, &stats) == 0 && stats.rejected == 2 &&
+            stats.pendingRequests == 1 && requests.callbacks == 1, "only the keyed request is held");
+    rtcConfiguration config{};
+    rtcLocalDescriptionInit init{keyed.c_str(), derived.c_str()};
+    auto sdp = remoteSdp();
+    int peer = -1;
+    require(rtcPrepareIceUdpMuxPeer(listener, id, &config, sdp.c_str(), &init, &peer) == 0,
+            "the application derives the same password");
+    cleanup(peer);
+    require(rtcSetIceUdpMuxAdmission(listener, nullptr) == 0, "clear admission");
+    open.send(request("unknownLocalUfrag", 24));
+    requests.wait(1);
+    require(rtcDeleteIceUdpMuxListener(listener) == 0, "delete admission listener");
+    require(rtcSetIceUdpMuxAdmission(listener, &settings) < 0, "admission needs a listener");
+}
 }
 
 int main() {
@@ -324,7 +364,8 @@ int main() {
         reentrantClose(true);
         preparedOwnership();
         directPeer();
-        std::cout << "incoming ICE PASS reentrantReject=true reentrantStop=true existingPeerAttachment=true directPeer=true\n";
+        admission();
+        std::cout << "incoming ICE PASS reentrantReject=true reentrantStop=true existingPeerAttachment=true directPeer=true admission=true\n";
         rtcCleanup();
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

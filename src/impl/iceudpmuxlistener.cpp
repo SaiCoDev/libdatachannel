@@ -285,6 +285,29 @@ void IceUdpMuxListener::reject(uint64_t requestId) {
 	if (peer) peer->close();
 }
 
+void IceUdpMuxListener::setAdmission(const optional<IceUdpMuxAdmission> &admission) {
+#if !USE_NICE
+	std::vector<juice_mux_admission_key_t> keys;
+	juice_mux_admission_t native{};
+	if (admission) {
+		for (const auto &key : admission->keys)
+			keys.push_back({key.ufragPrefix.c_str(), key.secret.data(), key.secret.size()});
+		native = {admission->context.data(), admission->context.size(), keys.data(),
+		          static_cast<int>(keys.size())};
+	}
+	std::lock_guard lock(mStopMutex); // Stop clears the native admission.
+	if (!mPendingMode || mStopped)
+		throw std::logic_error("ICE UDP mux admission requires a running pending listener");
+	int result = juice_mux_set_admission(bindAddress ? bindAddress->c_str() : nullptr, port,
+	                                     admission ? &native : nullptr);
+	if (result == JUICE_ERR_INVALID) throw std::invalid_argument("Invalid ICE UDP mux admission");
+	if (result < 0) throw std::runtime_error("Failed to set ICE UDP mux admission");
+#else
+	(void)admission;
+	throw std::runtime_error("ICE UDP mux requires libjuice");
+#endif
+}
+
 IceUdpMuxListenerStats IceUdpMuxListener::stats() const {
 #if !USE_NICE
 	juice_mux_stats_t result{};

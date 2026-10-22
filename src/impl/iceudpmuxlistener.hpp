@@ -37,6 +37,7 @@ struct IceUdpMuxListener final {
 	void accept(uint64_t requestId, shared_ptr<rtc::PeerConnection> peer);
 	void attach(uint64_t requestId, shared_ptr<rtc::PeerConnection> peer);
 	void reject(uint64_t requestId);
+	void setAdmission(const optional<IceUdpMuxAdmission> &admission);
 	IceUdpMuxListenerStats stats() const;
 	shared_ptr<rtc::StunUdpMuxMonitor> monitorStun(string serverHost, uint16_t serverPort);
 

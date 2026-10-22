@@ -655,6 +655,29 @@ int rtcGetIceUdpMuxListenerStats(int listener, rtcIceUdpMuxListenerStats *stats)
 	});
 }
 
+int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmission *admission) {
+	return wrap([&] {
+		optional<IceUdpMuxAdmission> value;
+		if (admission) {
+			if (admission->contextSize < 0 || (admission->contextSize && !admission->context) ||
+			    admission->keysCount < 0 || (admission->keysCount && !admission->keys))
+				throw std::invalid_argument("Invalid ICE UDP mux admission");
+			auto context = static_cast<const byte *>(admission->context);
+			value.emplace();
+			value->context.assign(context, context + admission->contextSize);
+			for (int i = 0; i < admission->keysCount; ++i) {
+				const auto &key = admission->keys[i];
+				if (!key.ufragPrefix || key.secretSize < 0 || (key.secretSize && !key.secret))
+					throw std::invalid_argument("Invalid ICE UDP mux admission key");
+				auto secret = static_cast<const byte *>(key.secret);
+				value->keys.push_back({key.ufragPrefix, binary(secret, secret + key.secretSize)});
+			}
+		}
+		getIceUdpMuxListener(listener)->setAdmission(std::move(value));
+		return RTC_ERR_SUCCESS;
+	});
+}
+
 int rtcCreatePeerConnection(const rtcConfiguration *config) {
 	return wrap([config] {
 		Configuration c = convertConfiguration(config);

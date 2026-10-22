@@ -256,6 +256,20 @@ typedef struct {
 	unsigned int pendingRequests;
 } rtcIceUdpMuxListenerStats;
 
+typedef struct {
+	const char *ufragPrefix;
+	const void *secret;
+	int secretSize;
+} rtcIceUdpMuxAdmissionKey;
+
+// A key's password is BASE64(HMAC-SHA256(secret, context || local ufrag)[0..24]).
+typedef struct {
+	const void *context;
+	int contextSize;
+	const rtcIceUdpMuxAdmissionKey *keys;
+	int keysCount;
+} rtcIceUdpMuxAdmission;
+
 // Metadata is borrowed for this callback only. Copy it before queuing work.
 // The callback runs outside the UDP receive lock. It may reject requests, but
 // must not delete the listener. Deletion waits for callbacks to return.
@@ -278,6 +292,9 @@ RTC_C_EXPORT int rtcAcceptIceUdpMuxPeer(int listener, uint64_t requestId, int pc
 RTC_C_EXPORT int rtcAttachIceUdpMuxPeer(int listener, uint64_t requestId, int pc);
 RTC_C_EXPORT int rtcRejectIceUdpMuxRequest(int listener, uint64_t requestId);
 RTC_C_EXPORT int rtcGetIceUdpMuxListenerStats(int listener, rtcIceUdpMuxListenerStats *stats);
+// Drop requests that neither a key nor a registered peer authenticates, natively and before
+// any callback. Secrets are copied. NULL holds every request again.
+RTC_C_EXPORT int rtcSetIceUdpMuxAdmission(int listener, const rtcIceUdpMuxAdmission *admission);
 
 // Persistent STUN monitoring on a shared UDP socket, with no ICE peer (libjuice only).
 typedef struct {

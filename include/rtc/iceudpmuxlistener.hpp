@@ -37,6 +37,17 @@ struct IceUdpMuxListenerConfiguration {
 	unsigned int requestTimeoutMs = 5000;
 };
 
+struct IceUdpMuxAdmissionKey {
+	string ufragPrefix;
+	binary secret;
+};
+
+// A key's password is BASE64(HMAC-SHA256(secret, context || local ufrag)[0..24]).
+struct IceUdpMuxAdmission {
+	binary context;
+	std::vector<IceUdpMuxAdmissionKey> keys;
+};
+
 struct IceUdpMuxListenerStats {
 	uint64_t received = 0;
 	uint64_t rejected = 0;
@@ -97,6 +108,9 @@ public:
 	// Preserves its DTLS identity, SDP, channels and caller ownership on failure.
 	void attach(uint64_t requestId, shared_ptr<PeerConnection> peer);
 	void reject(uint64_t requestId);
+	// Drop requests that neither a key nor a registered peer authenticates, natively and
+	// before any callback. nullopt holds every request again. Pending listeners only.
+	void setAdmission(optional<IceUdpMuxAdmission> admission);
 	IceUdpMuxListenerStats stats() const;
 	// The monitor inherits this listener's exact bind address/port and remains
 	// caller-owned when the listener stops. Stop it separately when no longer needed.
