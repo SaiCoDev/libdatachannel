@@ -222,6 +222,7 @@ typedef struct {
 	int mtu;                 // <= 0 means automatic
 	int maxMessageSize;      // <= 0 means default
 	bool disableFingerprintVerification;
+	bool iceUdpMuxDirect; // libjuice only, skip a pending listener's admission
 } rtcConfiguration;
 
 typedef struct {

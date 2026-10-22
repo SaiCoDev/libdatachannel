@@ -186,6 +186,7 @@ void IceUdpMuxListener::prepare(uint64_t requestId, Configuration config,
 				throw std::invalid_argument("Incoming STUN authentication failed");
 			it->second.prepared = true;
 			config.enableIceUdpMux = true;
+			config.iceUdpMuxDirect = false;
 			config.bindAddress = bindAddress;
 			config.portRangeBegin = port;
 			config.portRangeEnd = port;
@@ -241,6 +242,8 @@ void IceUdpMuxListener::attach(uint64_t requestId, shared_ptr<rtc::PeerConnectio
 	if (!peer || peer->state() == rtc::PeerConnection::State::Closed ||
 	    peer->config()->disableFingerprintVerification)
 		throw std::invalid_argument("A live authenticated peer is required");
+	if (peer->config()->iceUdpMuxDirect)
+		throw std::invalid_argument("A direct ICE UDP mux peer cannot be attached");
 	auto local = peer->localDescription();
 	auto remote = peer->remoteDescription();
 	auto transport = peer->impl()->getIceTransport();

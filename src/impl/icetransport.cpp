@@ -108,6 +108,7 @@ IceTransport::IceTransport(const Configuration &config, candidate_callback candi
 	if (config.enableIceUdpMux) {
 		PLOG_DEBUG << "Enabling ICE UDP mux";
 		jconfig.concurrency_mode = JUICE_CONCURRENCY_MODE_MUX;
+		jconfig.mux_direct = config.iceUdpMuxDirect;
 	} else {
 		jconfig.concurrency_mode = JUICE_CONCURRENCY_MODE_POLL;
 	}

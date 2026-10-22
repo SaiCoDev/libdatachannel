@@ -189,6 +189,37 @@ void cleanup(int peer) {
     require(rtcClosePeerConnectionAndWait(peer, 5000) == 0, "complete peer teardown");
     require(rtcDeletePeerConnection(peer) == 0, "delete peer");
 }
+// A direct peer on the listener's port answers its own checks; unknown ufrags still go to admission.
+void directPeer() {
+    Requests requests;
+    rtcIceUdpMuxListenerConfiguration cfg{"127.0.0.1", port, 8, 5000};
+    int listener = rtcCreateIceUdpMuxListener(&cfg, Requests::incoming, &requests);
+    require(listener >= 0, "direct listener");
+    rtcConfiguration config{};
+    config.bindAddress = "127.0.0.1";
+    config.enableIceUdpMux = true;
+    config.iceUdpMuxDirect = true;
+    config.disableAutoNegotiation = true;
+    config.portRangeBegin = config.portRangeEnd = port;
+    int peer = rtcCreatePeerConnection(&config);
+    require(peer >= 0, "create direct peer");
+    auto sdp = remoteSdp();
+    require(rtcSetRemoteDescription(peer, sdp.c_str(), "offer") == 0, "direct remote description");
+    rtcLocalDescriptionInit init{localUfrag.c_str(), localPassword.c_str()};
+    require(rtcSetLocalDescriptionEx(peer, "answer", &init) == 0, "direct local description");
+    Socket client;
+    client.send(request(localUfrag, 16));
+    require(client.response(16), "direct peer answers without admission");
+    rtcIceUdpMuxListenerStats stats{};
+    require(rtcGetIceUdpMuxListenerStats(listener, &stats) == 0 && stats.mappedTuples == 1 &&
+            requests.callbacks == 0, "direct peer maps its source natively");
+    Socket unknown;
+    unknown.send(request("unknownUfrag", 17));
+    auto id = requests.wait(0);
+    require(rtcRejectIceUdpMuxRequest(listener, id) == 0, "reject unknown ufrag");
+    cleanup(peer);
+    require(rtcDeleteIceUdpMuxListener(listener) == 0, "delete direct listener");
+}
 }
 
 int main() {
@@ -292,7 +323,8 @@ int main() {
         reentrantClose(false);
         reentrantClose(true);
         preparedOwnership();
-        std::cout << "incoming ICE PASS reentrantReject=true reentrantStop=true existingPeerAttachment=true\n";
+        directPeer();
+        std::cout << "incoming ICE PASS reentrantReject=true reentrantStop=true existingPeerAttachment=true directPeer=true\n";
         rtcCleanup();
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

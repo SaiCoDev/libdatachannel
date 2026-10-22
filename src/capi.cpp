@@ -79,6 +79,7 @@ Configuration convertConfiguration(const rtcConfiguration *config) {
 	c.iceTransportPolicy = static_cast<TransportPolicy>(config->iceTransportPolicy);
 	c.enableIceTcp = config->enableIceTcp;
 	c.enableIceUdpMux = config->enableIceUdpMux;
+	c.iceUdpMuxDirect = config->iceUdpMuxDirect;
 	c.disableAutoNegotiation = config->disableAutoNegotiation;
 	c.forceMediaTransport = config->forceMediaTransport;
 	c.disableFingerprintVerification = config->disableFingerprintVerification;

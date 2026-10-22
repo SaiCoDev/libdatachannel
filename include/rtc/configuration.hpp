@@ -74,6 +74,7 @@ struct RTC_CPP_EXPORT Configuration {
 	TransportPolicy iceTransportPolicy = TransportPolicy::All;
 	bool enableIceTcp = false;
 	bool enableIceUdpMux = false; // libjuice only
+	bool iceUdpMuxDirect = false; // libjuice only, skip a pending listener's admission
 	bool disableAutoNegotiation = false;
 	bool disableAutoGathering = false;
 	bool forceMediaTransport = false;
